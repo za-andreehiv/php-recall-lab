@@ -1,0 +1,47 @@
+name: CI and hosting package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo, pdo_mysql, mbstring
+          coverage: none
+
+      - name: Lint PHP files
+        run: find . -type f -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l
+
+      - name: Verify curriculum volume
+        run: |
+          php -r 'require "app/seed.php"; $d=curriculum_data(); if(count($d)!==14){fwrite(STDERR,"Expected 14 topics\n");exit(1);} foreach($d as $t){if(count($t["tasks"])!==10){fwrite(STDERR,$t["code"]." must have 10 tasks\n");exit(1);}} echo "14 topics and 140 tasks verified\n";'
+
+      - name: Build hosting ZIP
+        run: |
+          mkdir -p release/php-recall-lab
+          rsync -a ./ release/php-recall-lab/ \
+            --exclude '.git' --exclude '.github' --exclude 'release' \
+            --exclude 'config.php' --exclude 'storage/*.log' --exclude 'storage/*.lock'
+          cd release
+          zip -qr php-recall-lab-hosting.zip php-recall-lab
+
+      - name: Upload hosting package
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-recall-lab-hosting
+          path: release/php-recall-lab-hosting.zip
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,7 @@
+/config.php
+/storage/*.log
+/storage/*.lock
+/storage/install.lock
+/release/
+*.zip
+.DS_Store

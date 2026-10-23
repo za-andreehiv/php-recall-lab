@@ -26,6 +26,14 @@ function analyze_course_answer(array $exercise, string $answer): array
         $messages[] = 'Ответ слишком короткий: покажите ход решения, а не только название конструкции.';
     }
 
+    $starterHash = (string)($config['starter_hash'] ?? '');
+    $answerHash = hash('sha256',trim($answer));
+    $changed = $starterHash === '' || !hash_equals($starterHash,$answerHash);
+    $checks[] = ['name'=>'Начальный шаблон дополнен','passed'=>$changed];
+    if (!$changed) {
+        $messages[] = 'Начальный шаблон не изменён. Допишите самостоятельное решение перед проверкой.';
+    }
+
     foreach (($config['forbidden'] ?? []) as $forbidden) {
         $found = str_contains($folded,course_fold((string)$forbidden));
         $checks[] = ['name'=>'Без опасной конструкции '.$forbidden,'passed'=>!$found];

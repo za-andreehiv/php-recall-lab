@@ -7,9 +7,12 @@ $userId = (int)$user['id'];
 
 function load_course_exercise(int $id): ?array
 {
-    $stmt = db()->prepare("SELECT e.*,l.title lesson_title,l.concept_summary,s.id section_id,s.code section_code,s.title section_title
+    $stmt = db()->prepare("SELECT e.*,l.title lesson_title,l.concept_summary,s.id section_id,s.code section_code,s.title section_title,
+      d.goal,d.theory_text,d.input_data,d.expected_result,d.constraints_text,d.self_check,d.hint1,d.hint2
       FROM course_exercises e JOIN course_lessons l ON l.id=e.lesson_id
-      JOIN course_sections s ON s.id=l.section_id WHERE e.id=?");
+      JOIN course_sections s ON s.id=l.section_id
+      LEFT JOIN exercise_details d ON d.exercise_id=e.id
+      WHERE e.id=?");
     $stmt->execute([$id]);
     return $stmt->fetch() ?: null;
 }
@@ -90,6 +93,25 @@ if ($exercise) {
     $last = $stmt->fetch() ?: null;
 }
 
+$checkerCriteria = [];
+if ($exercise) {
+    $checkerConfig = json_decode((string)$exercise['checker_config'],true);
+    if (is_array($checkerConfig)) {
+        foreach (($checkerConfig['checks'] ?? []) as $criterion) {
+            $label = trim((string)($criterion['label'] ?? $criterion['needle'] ?? ''));
+            if ($label !== '') {
+                $checkerCriteria[] = $label;
+            }
+        }
+        if (($checkerConfig['syntax'] ?? false) === true) {
+            array_unshift($checkerCriteria,'корректный синтаксис PHP');
+        }
+        if ((string)$exercise['exercise_type'] === 'sql') {
+            array_unshift($checkerCriteria,'корректное начало и безопасная структура SQL');
+        }
+    }
+}
+
 render_header('Решение задания', 'course');
 ?>
 <?php if (!$exercise): ?>
@@ -100,24 +122,73 @@ render_header('Решение задания', 'course');
   <article class="panel">
     <p class="eyebrow"><?= h($exercise['exercise_type']) ?> · <?= h($exercise['lesson_title']) ?></p>
     <h2><?= h($exercise['title']) ?></h2>
-    <p class="lead"><?= h($exercise['prompt']) ?></p>
-    <details class="hint theory-panel" open><summary>Теория по теме</summary><div class="theory-text"><?= nl2br(h($exercise['concept_summary'])) ?></div></details>
 
-    <form method="post" class="stack">
+    <section class="lesson-block goal-block">
+      <h3>Цель</h3>
+      <p><?= nl2br(h((string)($exercise['goal'] ?: 'Закрепить тему на самостоятельном примере.'))) ?></p>
+    </section>
+
+    <details class="hint theory-panel" open>
+      <summary>Вся необходимая теория</summary>
+      <div class="theory-text"><?= nl2br(h((string)($exercise['theory_text'] ?: $exercise['concept_summary']))) ?></div>
+    </details>
+
+    <section class="lesson-block">
+      <h3>Исходные данные</h3>
+      <pre class="code-block"><?= h((string)($exercise['input_data'] ?: 'Исходные данные указаны в условии.')) ?></pre>
+    </section>
+
+    <section class="lesson-block">
+      <h3>Задача</h3>
+      <div class="task-steps"><?= nl2br(h($exercise['prompt'])) ?></div>
+    </section>
+
+    <section class="lesson-block expected-block">
+      <h3>Ожидаемый результат</h3>
+      <pre class="code-block"><?= h((string)($exercise['expected_result'] ?: 'Результат должен соответствовать условию.')) ?></pre>
+    </section>
+
+    <section class="lesson-block">
+      <h3>Ограничения</h3>
+      <div class="task-steps"><?= nl2br(h((string)($exercise['constraints_text'] ?: 'Используйте только изученные конструкции.'))) ?></div>
+    </section>
+
+    <form method="post" class="stack solution-form">
       <?= csrf_field() ?>
       <input type="hidden" name="action" value="check">
       <input type="hidden" name="exercise_id" value="<?= (int)$exercise['id'] ?>">
-      <label>Ваше самостоятельное решение
-        <textarea id="answer" name="answer" rows="16" spellcheck="false"><?= h($answer ?: (string)$exercise['starter_code']) ?></textarea>
+      <label><strong>Ваше самостоятельное решение</strong>
+        <textarea id="answer" name="answer" rows="18" spellcheck="false"><?= h($answer ?: (string)$exercise['starter_code']) ?></textarea>
       </label>
       <div class="button-row">
         <button class="button primary" type="submit">Проверить</button>
         <button class="button secondary" type="button" id="copy-review"
           data-code="<?= h($exercise['code']) ?>" data-title="<?= h($exercise['title']) ?>"
-          data-prompt="<?= h($exercise['prompt']) ?>">Скопировать пакет для чата</button>
+          data-prompt="<?= h($exercise['prompt']."\n\nИсходные данные:\n".(string)$exercise['input_data']."\n\nОжидаемый результат:\n".(string)$exercise['expected_result']) ?>">Скопировать пакет для чата</button>
       </div>
       <p class="muted">PHP-код не выполняется: проверяются синтаксис, структура и обязательные элементы. SQL-запросы также не запускаются на боевой базе.</p>
     </form>
+
+    <details class="hint">
+      <summary>Самопроверка перед отправкой</summary>
+      <div class="theory-text"><?= nl2br(h((string)$exercise['self_check'])) ?></div>
+    </details>
+
+    <details class="hint">
+      <summary>Что проверит сайт</summary>
+      <?php if ($checkerCriteria): ?>
+      <ul class="criteria-list"><?php foreach ($checkerCriteria as $criterion): ?><li><?= h($criterion) ?></li><?php endforeach; ?></ul>
+      <?php else: ?><p>Полноту ответа, отсутствие заглушек и безопасную структуру решения.</p><?php endif; ?>
+    </details>
+
+    <details class="hint">
+      <summary>Подсказка 1</summary>
+      <p><?= h((string)$exercise['hint1']) ?></p>
+    </details>
+    <details class="hint">
+      <summary>Подсказка 2</summary>
+      <p><?= h((string)$exercise['hint2']) ?></p>
+    </details>
   </article>
 
   <?php if ($result): ?>

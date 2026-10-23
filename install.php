@@ -55,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $settings->execute(['review_intervals', '10 минут, 1, 3, 7, 14, 30, 45, 60 дней']);
             $settings->execute(['course_v2_installed', date('c')]);
             $settings->execute(['course_v21_installed', date('c')]);
+            $settings->execute(['course_v22_installed', date('c')]);
             db()->commit();
 
             session_regenerate_id(true);

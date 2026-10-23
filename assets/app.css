@@ -56,3 +56,61 @@ code{background:#e9ece7;border-radius:6px;padding:.12rem .35rem}
 .check-list li{padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.7)}
 .check-list li.ok{color:var(--green)}
 .check-list li.bad{color:var(--red);background:#fff0ed}
+
+
+/* v2.2: full autonomous exercise layout */
+.lesson-block {
+  margin: 1rem 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line, #d6ddd8);
+  border-radius: 14px;
+  background: #fffdf8;
+}
+.lesson-block h3 {
+  margin: 0 0 .55rem;
+  font-size: 1rem;
+  letter-spacing: .01em;
+}
+.goal-block {
+  border-left: 4px solid #0a6a4d;
+  background: #f0f8f4;
+}
+.expected-block {
+  border-left: 4px solid #c88828;
+  background: #fff8e9;
+}
+.code-block {
+  margin: 0;
+  padding: .9rem 1rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-radius: 10px;
+  background: #17251f;
+  color: #f5fbf7;
+  font: .92rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.task-steps,
+.theory-text {
+  line-height: 1.65;
+}
+.solution-form {
+  margin-top: 1.3rem;
+  padding-top: 1.2rem;
+  border-top: 2px solid var(--line, #d6ddd8);
+}
+.criteria-list {
+  margin: .75rem 0 .25rem 1.2rem;
+  padding: 0;
+}
+.criteria-list li {
+  margin: .35rem 0;
+}
+.task-shell .hint {
+  margin-top: .8rem;
+}
+@media (max-width: 680px) {
+  .lesson-block { padding: .85rem; }
+  .code-block { font-size: .82rem; }
+  .solution-form textarea { min-height: 22rem; }
+}

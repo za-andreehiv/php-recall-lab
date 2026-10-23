@@ -9,7 +9,7 @@ $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     try {
-        foreach (['migrations/v2.sql','migrations/v2_1.sql'] as $migration) {
+        foreach (['migrations/v2.sql','migrations/v2_1.sql','migrations/v2_2.sql'] as $migration) {
             $sql = file_get_contents(__DIR__.'/'.$migration);
             if ($sql === false) {
                 throw new RuntimeException('Не найден '.$migration);
@@ -23,10 +23,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         db()->beginTransaction();
         seed_prime_course(db());
-        db()->prepare('INSERT INTO app_settings (setting_key,value_text) VALUES ("course_v21_installed",?)
+        db()->prepare('INSERT INTO app_settings (setting_key,value_text) VALUES ("course_v22_installed",?)
           ON DUPLICATE KEY UPDATE value_text=VALUES(value_text)')->execute([date('c')]);
         db()->commit();
-        flash('success','Курс обновлён: создано '.prime_course_total().' самостоятельных заданий.');
+        flash('success','Курс обновлён: подробно оформлено '.prime_course_total().' самостоятельных заданий.');
         redirect('course.php');
     } catch (Throwable $e) {
         if (db()->inTransaction()) {
@@ -37,17 +37,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$installed = setting('course_v21_installed','') !== '';
+$installed = setting('course_v22_installed','') !== '';
 
 render_header('Обновление курса');
 ?>
 <section class="auth-card">
   <?php if ($error): ?><div class="flash error"><?= h($error) ?></div><?php endif; ?>
   <?php if ($installed): ?>
-    <div class="flash success">Версия 2.1 уже установлена: вся теория и практика находятся внутри платформы.</div>
+    <div class="flash success">Версия 2.2 уже установлена: все 447 заданий содержат теорию, точные данные, ожидаемый результат, самопроверку и подсказки.</div>
     <a class="button primary" href="<?= h(url('course.php')) ?>">Открыть курс</a>
   <?php else: ?>
-    <div class="callout"><strong>Что изменится:</strong> обновится внутренняя теория и будут удалены все внешние ссылки. Старые результаты и карточки сохранятся.</div>
+    <div class="callout"><strong>Что изменится:</strong> все 447 заданий будут перестроены по подробному шаблону; автопроверка не примет неизменённый стартовый код. Старые результаты, попытки и карточки повторения сохранятся.</div>
     <form method="post"><?= csrf_field() ?><button class="button primary" type="submit">Установить обновление курса</button></form>
   <?php endif; ?>
 </section>

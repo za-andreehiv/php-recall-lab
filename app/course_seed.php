@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 /**
- * Тематическая карта вдохновлена оглавлением публичного учебника code.mu.
- * Формулировки, сценарии и проверочные задания в этом файле созданы заново.
+ * Внутренняя тематическая карта PHP + MySQL.
+ * Теория, сценарии и задания созданы для PHP Recall Lab.
  */
 function prime_course_blueprint(): array
 {
@@ -100,9 +100,38 @@ function prime_course_total(): int
     return array_sum(array_column(prime_course_blueprint(), 2));
 }
 
+function prime_internal_theory(string $concept, array $tokens, string $type): string
+{
+    $syntax = implode(', ', $tokens);
+    if ($type === 'sql') {
+        return "Что изучаем: {$concept}.\n\n".
+            "Назначение: конструкция применяется для чтения или изменения данных в реляционной базе. ".
+            "Перед запросом определите таблицу, нужные поля и условие отбора.\n\n".
+            "Синтаксический ориентир: {$syntax}. Это не готовое решение — составьте запрос под условие задачи.\n\n".
+            "Типичные ошибки: пропущенное условие WHERE в изменяющем запросе, неверное имя поля, смешивание строк и чисел, выполнение опасной команды не в той базе.\n\n".
+            "Самопроверка: назовите ожидаемые строки, проверьте условие отбора и объясните, какие данные запрос не должен затронуть.";
+    }
+
+    if ($type === 'project') {
+        return "Что изучаем: {$concept}.\n\n".
+            "Назначение: этот приём связывает PHP-код с HTTP-запросом, сессией или механизмом авторизации. ".
+            "Сначала определите входные данные и допустимый результат, затем предусмотрите отказ и повторный запрос.\n\n".
+            "Синтаксический ориентир: {$syntax}. Используйте его в собственном фрагменте, а не как отдельное слово.\n\n".
+            "Типичные ошибки: вывод до отправки заголовков, доверие пользовательскому вводу, хранение открытого пароля, отсутствие проверки прав.\n\n".
+            "Самопроверка: пройдите успешный, ошибочный и граничный сценарии и убедитесь, что секреты не попадают в HTML.";
+    }
+
+    return "Что изучаем: {$concept}.\n\n".
+        "Назначение: конструкция помогает выразить отдельный шаг алгоритма и сделать поведение программы явным. ".
+        "До написания кода определите входные значения, ожидаемый результат и хотя бы один граничный случай.\n\n".
+        "Синтаксический ориентир: {$syntax}. Это опорные элементы, а не готовый ответ.\n\n".
+        "Типичные ошибки: неверный тип данных, неправильный порядок операций, пропущенная ветка, изменение исходных данных без необходимости.\n\n".
+        "Самопроверка: прочитайте код построчно, назовите значение каждой переменной и вручную проверьте обычный, пустой и граничный ввод.";
+}
+
 function seed_prime_course(PDO $pdo): void
 {
-    $source = 'https://code.mu/ru/php/book/prime/';
+    $source = null;
     $sectionInsert = $pdo->prepare('INSERT INTO course_sections
         (code,title,description,sort_order,source_url) VALUES (?,?,?,?,?)');
     $lessonInsert = $pdo->prepare('INSERT INTO course_lessons
@@ -110,6 +139,10 @@ function seed_prime_course(PDO $pdo): void
     $exerciseInsert = $pdo->prepare('INSERT INTO course_exercises
         (lesson_id,code,exercise_type,title,prompt,starter_code,checker_config,difficulty,sort_order,source_url)
         VALUES (?,?,?,?,?,?,?,?,?,?)');
+
+    $pdo->exec('UPDATE course_sections SET source_url=NULL');
+    $pdo->exec('UPDATE course_lessons SET source_url=NULL');
+    $pdo->exec('UPDATE course_exercises SET source_url=NULL');
 
     $scenarios = ['список покупок','каталог курсов','учёт учеников','заказы магазина','журнал попыток','расписание занятий','личный бюджет'];
     $modes = ['Создайте решение','Найдите и исправьте ошибку','Объясните выбор конструкции','Решите с граничными случаями','Перепишите решение понятнее'];
@@ -132,10 +165,13 @@ function seed_prime_course(PDO $pdo): void
             if (!$lessonId) {
                 $lessonInsert->execute([
                     $sectionId,$slug,$concept,
-                    'Разберите назначение конструкции «'.$concept.'», напишите собственный пример и проверьте граничные случаи.',
+                    prime_internal_theory($concept,$tokens,$baseType),
                     $conceptIndex+1,$source
                 ]);
                 $lessonId = (int)$pdo->lastInsertId();
+            } else {
+                $pdo->prepare('UPDATE course_lessons SET concept_summary=?,source_url=NULL WHERE id=?')
+                    ->execute([prime_internal_theory($concept,$tokens,$baseType),$lessonId]);
             }
             $lessonIds[] = $lessonId;
         }

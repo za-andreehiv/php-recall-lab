@@ -101,7 +101,7 @@ render_header('Решение задания', 'course');
     <p class="eyebrow"><?= h($exercise['exercise_type']) ?> · <?= h($exercise['lesson_title']) ?></p>
     <h2><?= h($exercise['title']) ?></h2>
     <p class="lead"><?= h($exercise['prompt']) ?></p>
-    <details class="hint"><summary>Теоретический ориентир</summary><p><?= h($exercise['concept_summary']) ?></p><p><a href="<?= h($exercise['source_url']) ?>" target="_blank" rel="noopener noreferrer">Открыть оглавление внешнего учебника ↗</a></p></details>
+    <details class="hint theory-panel" open><summary>Теория по теме</summary><div class="theory-text"><?= nl2br(h($exercise['concept_summary'])) ?></div></details>
 
     <form method="post" class="stack">
       <?= csrf_field() ?>

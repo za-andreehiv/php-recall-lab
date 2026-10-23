@@ -9,19 +9,21 @@ $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     try {
-        $sql = file_get_contents(__DIR__.'/migrations/v2.sql');
-        if ($sql === false) {
-            throw new RuntimeException('Не найден migrations/v2.sql');
-        }
-        foreach (explode('-- SPLIT --',$sql) as $statement) {
-            $statement = trim($statement);
-            if ($statement !== '') {
-                db()->exec($statement);
+        foreach (['migrations/v2.sql','migrations/v2_1.sql'] as $migration) {
+            $sql = file_get_contents(__DIR__.'/'.$migration);
+            if ($sql === false) {
+                throw new RuntimeException('Не найден '.$migration);
+            }
+            foreach (explode('-- SPLIT --',$sql) as $statement) {
+                $statement = trim($statement);
+                if ($statement !== '') {
+                    db()->exec($statement);
+                }
             }
         }
         db()->beginTransaction();
         seed_prime_course(db());
-        db()->prepare('INSERT INTO app_settings (setting_key,value_text) VALUES ("course_v2_installed",?)
+        db()->prepare('INSERT INTO app_settings (setting_key,value_text) VALUES ("course_v21_installed",?)
           ON DUPLICATE KEY UPDATE value_text=VALUES(value_text)')->execute([date('c')]);
         db()->commit();
         flash('success','Курс обновлён: создано '.prime_course_total().' самостоятельных заданий.');
@@ -35,21 +37,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$installed = false;
-try {
-    $installed = (int)db()->query('SELECT COUNT(*) FROM course_exercises')->fetchColumn() === 447;
-} catch (Throwable) {
-}
+$installed = setting('course_v21_installed','') !== '';
 
 render_header('Обновление курса');
 ?>
 <section class="auth-card">
   <?php if ($error): ?><div class="flash error"><?= h($error) ?></div><?php endif; ?>
   <?php if ($installed): ?>
-    <div class="flash success">Версия 2 уже установлена: 447 заданий доступны.</div>
+    <div class="flash success">Версия 2.1 уже установлена: вся теория и практика находятся внутри платформы.</div>
     <a class="button primary" href="<?= h(url('course.php')) ?>">Открыть курс</a>
   <?php else: ?>
-    <div class="callout"><strong>Что изменится:</strong> добавятся таблицы полного курса, отправки решений и карточки ошибок. Старые результаты и карточки сохранятся.</div>
+    <div class="callout"><strong>Что изменится:</strong> обновится внутренняя теория и будут удалены все внешние ссылки. Старые результаты и карточки сохранятся.</div>
     <form method="post"><?= csrf_field() ?><button class="button primary" type="submit">Установить обновление курса</button></form>
   <?php endif; ?>
 </section>

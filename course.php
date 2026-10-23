@@ -66,7 +66,6 @@ render_header('Курс PHP + MySQL', 'course');
 </section>
 
 <section class="callout">
-  <strong>Об источнике:</strong> на сайте хранится ссылка на тематическое оглавление, но не копии чужих уроков и заданий.
-  <a href="https://code.mu/ru/php/book/prime/" target="_blank" rel="noopener noreferrer">Открыть тематический ориентир ↗</a>
+  <strong>Всё внутри платформы:</strong> теория, самостоятельная практика, автоматические проверки и карточки ошибок доступны без перехода на сторонние сайты.
 </section>
 <?php render_footer(); ?>

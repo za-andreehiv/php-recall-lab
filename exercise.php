@@ -69,6 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               VALUES (?,?,'passed',1,NOW(),NOW())
               ON DUPLICATE KEY UPDATE best_status='passed',accepted_at=NOW(),last_attempt_at=NOW()")
               ->execute([$userId,$submission['exercise_id']]);
+            activate_course_cards_for_exercise($userId,(int)$submission['exercise_id']);
             db()->prepare('UPDATE mistake_cards SET active=0 WHERE user_id=? AND exercise_id=?')
               ->execute([$userId,$submission['exercise_id']]);
         }

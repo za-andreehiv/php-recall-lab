@@ -116,6 +116,7 @@ function save_course_submission(int $userId, array $exercise, string $answer, ar
       ->execute([$userId,$exercise['id'],$status,$result['passed'] ? date('Y-m-d H:i:s') : null]);
 
     if ($result['passed']) {
+        activate_course_cards_for_exercise($userId,(int)$exercise['id']);
         db()->prepare('UPDATE mistake_cards SET active=0 WHERE user_id=? AND exercise_id=?')
           ->execute([$userId,$exercise['id']]);
     } else {

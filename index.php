@@ -8,90 +8,84 @@ if (!app_installed()) {
 $user = require_auth();
 $userId = (int)$user['id'];
 
-$unlockSql = "(t.prerequisite_id IS NULL OR EXISTS (
-    SELECT 1 FROM topic_progress pp
-    WHERE pp.user_id = ? AND pp.topic_id = t.prerequisite_id AND pp.status = 'mastered'
-))";
-
-$stmt = db()->prepare("SELECT COUNT(*) FROM user_cards uc
-    JOIN cards c ON c.id = uc.card_id JOIN topics t ON t.id = c.topic_id
-    WHERE uc.user_id = ? AND uc.due_at <= NOW() AND $unlockSql");
-$stmt->execute([$userId, $userId]);
+$stmt = db()->prepare('SELECT COUNT(*) FROM user_course_cards WHERE user_id=? AND due_at<=NOW()');
+$stmt->execute([$userId]);
 $dueCards = (int)$stmt->fetchColumn();
 
-$stmt = db()->prepare("SELECT COUNT(*) FROM tasks task JOIN topics t ON t.id = task.topic_id
-    WHERE $unlockSql AND NOT EXISTS (
-        SELECT 1 FROM attempts a WHERE a.user_id = ? AND a.task_id = task.id AND a.auto_passed = 1
-    )");
-$stmt->execute([$userId, $userId]);
-$pendingTasks = (int)$stmt->fetchColumn();
+$overview = course_overview($userId);
+$total = (int)$overview['total'];
+$accepted = (int)$overview['accepted'];
+$pending = max(0,$total-$accepted);
 
-$statsStmt = db()->prepare("SELECT
-    (SELECT COUNT(DISTINCT task_id) FROM attempts WHERE user_id = ? AND auto_passed = 1) solved,
-    (SELECT COUNT(*) FROM card_reviews WHERE user_id = ?) reviews,
-    (SELECT COUNT(*) FROM topic_progress WHERE user_id = ? AND status = 'mastered') mastered");
-$statsStmt->execute([$userId, $userId, $userId]);
-$stats = $statsStmt->fetch();
+$reviewStmt = db()->prepare('SELECT COUNT(*) FROM course_card_reviews WHERE user_id=?');
+$reviewStmt->execute([$userId]);
+$reviews = (int)$reviewStmt->fetchColumn();
 
-db()->prepare('INSERT INTO daily_sessions (user_id, session_date, due_cards, pending_tasks)
-    VALUES (?, CURDATE(), ?, ?)
-    ON DUPLICATE KEY UPDATE due_cards = VALUES(due_cards), pending_tasks = VALUES(pending_tasks)')
-    ->execute([$userId, $dueCards, $pendingTasks]);
+$activeStmt = db()->prepare('SELECT COUNT(*) FROM user_course_cards WHERE user_id=?');
+$activeStmt->execute([$userId]);
+$activeCards = (int)$activeStmt->fetchColumn();
+$cardBank = (int)db()->query('SELECT COUNT(*) FROM course_cards')->fetchColumn();
 
-$topics = db()->prepare('SELECT t.*, COALESCE(p.solved_count, 0) solved_count,
-    COALESCE(p.status, "not_started") progress_status
-    FROM topics t LEFT JOIN topic_progress p ON p.topic_id = t.id AND p.user_id = ?
-    ORDER BY t.sort_order');
-$topics->execute([$userId]);
-$topicRows = $topics->fetchAll();
+db()->prepare('INSERT INTO daily_sessions (user_id,session_date,due_cards,pending_tasks)
+    VALUES (?,CURDATE(),?,?)
+    ON DUPLICATE KEY UPDATE due_cards=VALUES(due_cards),pending_tasks=VALUES(pending_tasks)')
+    ->execute([$userId,$dueCards,$pending]);
 
-render_header('Сегодня', 'today');
+$sections = course_sections_with_progress($userId);
+$masteredSections = 0;
+foreach ($sections as $section) {
+    if ((int)$section['exercise_count'] > 0 && (int)$section['accepted_count'] === (int)$section['exercise_count']) {
+        $masteredSections++;
+    }
+}
+
+render_header('Сегодня','today');
 ?>
 <section class="hero-panel">
     <div>
-        <p class="eyebrow">Ваш учебный цикл</p>
+        <p class="eyebrow">Курс 447 + интервальные повторения</p>
         <h2>Вспомнить → решить → проверить → повторить</h2>
-        <p>Сначала отвечайте без подсказки. Если автоматическая проверка не объясняет ошибку — скопируйте контекст задания в десктопное приложение.</p>
+        <p>Карточки открываются по мере работы с темами. Шаги повторения: 10 минут, 1, 3, 7, 14, 30, 45 и 60 дней.</p>
     </div>
-    <a class="button primary large" href="<?= h(url($dueCards > 0 ? 'cards.php' : 'task.php')) ?>">
-        <?= $dueCards > 0 ? 'Повторить карточки' : 'Решать задачу' ?>
+    <a class="button primary large" href="<?= h(url($dueCards > 0 ? 'cards.php' : 'exercise.php')) ?>">
+        <?= $dueCards > 0 ? 'Повторить карточки' : 'Решать следующее задание' ?>
     </a>
-</section>
-
-<section class="panel">
-    <div class="section-heading">
-        <div><p class="eyebrow">Новый полный маршрут</p><h2>PHP + MySQL · 447 заданий</h2></div>
-        <a class="button primary" href="<?= h(url('course.php')) ?>">Открыть курс</a>
-    </div>
-    <p>Самостоятельные задачи, статическая проверка PHP и SQL, карточки собственных ошибок и постепенное открытие блоков.</p>
 </section>
 
 <div class="metric-grid">
     <article class="metric"><strong><?= $dueCards ?></strong><span>карточек на сегодня</span></article>
-    <article class="metric"><strong><?= $pendingTasks ?></strong><span>открытых задач</span></article>
-    <article class="metric"><strong><?= (int)$stats['solved'] ?></strong><span>задач решено</span></article>
-    <article class="metric"><strong><?= (int)$stats['mastered'] ?>/14</strong><span>тем освоено</span></article>
+    <article class="metric"><strong><?= $accepted ?>/<?= $total ?></strong><span>заданий принято</span></article>
+    <article class="metric"><strong><?= $activeCards ?>/<?= $cardBank ?></strong><span>карточек открыто</span></article>
+    <article class="metric"><strong><?= $masteredSections ?>/<?= count($sections) ?></strong><span>разделов завершено</span></article>
 </div>
 
 <section class="panel">
     <div class="section-heading">
-        <div><p class="eyebrow">Фундамент</p><h2>Первые 100 задач</h2></div>
-        <span class="status mastered">Пройдено: <?= h(setting('foundation_tasks_completed', '100')) ?></span>
+        <div><p class="eyebrow">Единый учебный маршрут</p><h2>PHP + MySQL · 447 заданий</h2></div>
+        <a class="button primary" href="<?= h(url('course.php')) ?>">Открыть программу</a>
     </div>
-    <p>Этот материал считается пройденным и будет постепенно переноситься в карточки по мере добавления точных формулировок.</p>
+    <p>Каждое задание содержит теорию, точные исходные данные, ожидаемый результат, ограничения, самопроверку и подсказки. После первого принятого задания темы её карточки добавляются в интервальное повторение.</p>
 </section>
 
 <section class="panel">
-    <div class="section-heading"><div><p class="eyebrow">Маршрут</p><h2>Темы 11.01–12.04</h2></div><a href="<?= h(url('progress.php')) ?>">Вся программа →</a></div>
+    <div class="section-heading">
+        <div><p class="eyebrow">Прогресс по разделам</p><h2><?= $pending ?> заданий впереди</h2></div>
+        <span><?= $reviews ?> повторений выполнено</span>
+    </div>
     <div class="topic-list compact">
-        <?php foreach (array_slice($topicRows, 0, 5) as $topic): ?>
-            <div class="topic-row">
-                <span class="topic-code"><?= h($topic['code']) ?></span>
-                <div class="grow"><strong><?= h($topic['title']) ?></strong>
-                    <div class="progress-track"><span style="width:<?= min(100, (int)$topic['solved_count'] * 10) ?>%"></span></div>
-                </div>
-                <span><?= (int)$topic['solved_count'] ?>/10</span>
+        <?php foreach ($sections as $section):
+            $count=(int)$section['exercise_count'];
+            $done=(int)$section['accepted_count'];
+            $percent=$count > 0 ? (int)round($done*100/$count) : 0;
+        ?>
+        <div class="topic-row">
+            <span class="topic-code"><?= h($section['code']) ?></span>
+            <div class="grow">
+                <strong><?= h($section['title']) ?></strong>
+                <div class="progress-track"><span style="width:<?= $percent ?>%"></span></div>
             </div>
+            <span><?= $done ?>/<?= $count ?></span>
+        </div>
         <?php endforeach; ?>
     </div>
 </section>

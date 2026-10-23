@@ -47,7 +47,7 @@ try {
 }
 
 require_once __DIR__ . '/functions.php';
-require_once __DIR__ . '/checker.php';
 require_once __DIR__ . '/layout.php';
 require_once __DIR__ . '/course.php';
+require_once __DIR__ . '/card_seed.php';
 require_once __DIR__ . '/code_checker.php';

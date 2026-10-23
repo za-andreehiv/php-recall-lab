@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 require __DIR__ . '/app/bootstrap.php';
-require_once __DIR__ . '/app/seed.php';
 require_once __DIR__ . '/app/course_seed.php';
 
 if (app_installed()) {
@@ -36,31 +35,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             db()->beginTransaction();
-            seed_curriculum(db());
             seed_prime_course(db());
 
             $stmt = db()->prepare('INSERT INTO users (login, password_hash) VALUES (?, ?)');
             $stmt->execute([$login, password_hash($password, PASSWORD_DEFAULT)]);
             $userId = (int) db()->lastInsertId();
 
-            db()->prepare('INSERT INTO user_cards (user_id, card_id, due_at) SELECT ?, id, NOW() FROM cards')
-                ->execute([$userId]);
-            db()->prepare("INSERT INTO topic_progress (user_id, topic_id, status) SELECT ?, id, 'not_started' FROM topics")
-                ->execute([$userId]);
+            seed_course_cards(db());
+            activate_first_course_cards($userId);
 
             $settings = db()->prepare('INSERT INTO app_settings (setting_key, value_text) VALUES (?, ?)
                 ON DUPLICATE KEY UPDATE value_text = VALUES(value_text)');
             $settings->execute(['installed_at', date('c')]);
-            $settings->execute(['foundation_tasks_completed', '100']);
             $settings->execute(['review_intervals', '10 минут, 1, 3, 7, 14, 30, 45, 60 дней']);
-            $settings->execute(['course_v2_installed', date('c')]);
-            $settings->execute(['course_v21_installed', date('c')]);
-            $settings->execute(['course_v22_installed', date('c')]);
+            $settings->execute(['edition', 'course-447-cards']);
+            $settings->execute(['course_exercises', (string)prime_course_total()]);
+            $settings->execute(['course_cards', (string)course_card_total()]);
             db()->commit();
 
             session_regenerate_id(true);
             $_SESSION['user_id'] = $userId;
-            set_flash('success', 'Тренажёр установлен. Первые карточки уже ждут повторения.');
+            set_flash('success', 'Чистый курс 447 установлен. Первые карточки готовы к повторению.');
             redirect('index.php');
         } catch (Throwable $e) {
             if (db()->inTransaction()) {
@@ -91,8 +86,8 @@ render_header('Первичная установка');
         <label>Повторите пароль
             <input type="password" name="password_confirm" required minlength="12" autocomplete="new-password">
         </label>
-        <button class="button primary" type="submit">Создать аккаунт и наполнить тренажёр</button>
+        <button class="button primary" type="submit">Создать аккаунт и установить курс 447</button>
     </form>
-    <p class="muted">Перед установкой создайте пустую MySQL-базу и файл <code>config.php</code> по примеру.</p>
+    <p class="muted">Для этого выпуска нужна полностью пустая MySQL-база и файл <code>config.php</code> по примеру.</p>
 </section>
 <?php render_footer(); ?>

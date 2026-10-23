@@ -143,29 +143,6 @@ function next_review_level(int $current, int $grade): int
     return min(7, $current + 2);
 }
 
-function update_topic_progress(int $userId, int $topicId): void
-{
-    $stmt = db()->prepare('SELECT COUNT(DISTINCT task_id) FROM attempts WHERE user_id = ? AND topic_id = ? AND auto_passed = 1');
-    $stmt->execute([$userId, $topicId]);
-    $solved = (int)$stmt->fetchColumn();
-
-    $requiredStmt = db()->prepare('SELECT required_solutions FROM topics WHERE id = ?');
-    $requiredStmt->execute([$topicId]);
-    $required = max(1, (int)$requiredStmt->fetchColumn());
-    $status = $solved >= $required ? 'mastered' : ($solved > 0 ? 'in_progress' : 'not_started');
-
-    $sql = 'INSERT INTO topic_progress (user_id, topic_id, solved_count, status, mastered_at)
-            VALUES (?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE solved_count = VALUES(solved_count), status = VALUES(status), mastered_at = VALUES(mastered_at)';
-    db()->prepare($sql)->execute([
-        $userId,
-        $topicId,
-        $solved,
-        $status,
-        $status === 'mastered' ? date('Y-m-d H:i:s') : null,
-    ]);
-}
-
 
 function h(mixed $value): string
 {

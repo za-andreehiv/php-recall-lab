@@ -8,10 +8,8 @@ function render_header(string $title, string $active = ''): void
     $items = [
         'today' => ['Сегодня', 'index.php'],
         'course' => ['Курс 447', 'course.php'],
+        'cards' => ['Повторение', 'cards.php'],
         'mistakes' => ['Ошибки', 'mistakes.php'],
-        'cards' => ['Карточки', 'cards.php'],
-        'task' => ['Практика', 'task.php'],
-        'progress' => ['Программа', 'progress.php'],
         'settings' => ['Настройки', 'settings.php'],
     ];
     ?>
@@ -48,7 +46,7 @@ function render_header(string $title, string $active = ''): void
     <?php endif; ?>
     <div class="page-heading">
         <div>
-            <p class="eyebrow">PHP + MySQL · самостоятельный тренажёр</p>
+            <p class="eyebrow">Курс 447 · PHP + MySQL · интервальные повторения</p>
             <h1><?= h($title) ?></h1>
         </div>
         <?php if ($user): ?><span class="user-chip"><?= h($user['login']) ?></span><?php endif; ?>

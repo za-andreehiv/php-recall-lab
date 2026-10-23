@@ -1,0 +1,68 @@
+name: Course 447 cards release
+
+on:
+  push:
+    branches: [release/course-447-cards]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify-package-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo, pdo_mysql, mbstring
+          coverage: none
+
+      - name: Lint PHP
+        run: find . -type f -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l
+
+      - name: Verify course and card volume
+        run: |
+          php -r 'require "app/course_seed.php"; require "app/card_seed.php"; if(prime_course_total()!==447){fwrite(STDERR,"Expected 447 exercises\n");exit(1);} if(course_card_total()!==444){fwrite(STDERR,"Expected 444 cards\n");exit(1);} echo "447 exercises and 444 cards verified\n";'
+
+      - name: Build clean hosting archive
+        run: |
+          mkdir -p release/php-recall-lab-course-447
+          rsync -a ./ release/php-recall-lab-course-447/ \
+            --exclude '.git' --exclude '.github' --exclude 'release' \
+            --exclude 'config.php' --exclude 'upgrade.php' --exclude 'migrations' \
+            --exclude 'task.php' --exclude 'progress.php' \
+            --exclude 'app/seed.php' --exclude 'app/checker.php' \
+            --exclude 'storage/*.log' --exclude 'storage/*.lock'
+          if grep -R -E "FROM (topics|tasks|cards|user_cards|topic_progress|attempts|card_reviews)" release/php-recall-lab-course-447 --include='*.php'; then
+            echo "Legacy curriculum reference found"
+            exit 1
+          fi
+          cd release
+          zip -qr php-recall-lab-course-447-cards.zip php-recall-lab-course-447
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-recall-lab-course-447-cards
+          path: release/php-recall-lab-course-447-cards.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="course-447-cards-v1.0.0"
+          ASSET="release/php-recall-lab-course-447-cards.zip"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ASSET" --clobber
+          else
+            gh release create "$TAG" "$ASSET#Чистая установка курса 447 и карточек" \
+              --target "$GITHUB_SHA" \
+              --title "Курс 447 + интервальные карточки v1.0.0" \
+              --notes "Отдельный выпуск для чистой установки: 447 заданий, 444 карточки, интервалы до 60 дней. Перед установкой прочитайте RESET-AND-INSTALL-RU.md."
+          fi

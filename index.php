@@ -58,6 +58,14 @@ render_header('Сегодня', 'today');
     </a>
 </section>
 
+<section class="panel">
+    <div class="section-heading">
+        <div><p class="eyebrow">Новый полный маршрут</p><h2>PHP + MySQL · 447 заданий</h2></div>
+        <a class="button primary" href="<?= h(url('course.php')) ?>">Открыть курс</a>
+    </div>
+    <p>Самостоятельные задачи, статическая проверка PHP и SQL, карточки собственных ошибок и постепенное открытие блоков.</p>
+</section>
+
 <div class="metric-grid">
     <article class="metric"><strong><?= $dueCards ?></strong><span>карточек на сегодня</span></article>
     <article class="metric"><strong><?= $pendingTasks ?></strong><span>открытых задач</span></article>

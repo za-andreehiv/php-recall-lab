@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/app/bootstrap.php';
 require_once __DIR__ . '/app/seed.php';
+require_once __DIR__ . '/app/course_seed.php';
 
 if (app_installed()) {
     redirect(current_user() ? 'index.php' : 'login.php');
@@ -36,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             db()->beginTransaction();
             seed_curriculum(db());
+            seed_prime_course(db());
 
             $stmt = db()->prepare('INSERT INTO users (login, password_hash) VALUES (?, ?)');
             $stmt->execute([$login, password_hash($password, PASSWORD_DEFAULT)]);
@@ -51,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $settings->execute(['installed_at', date('c')]);
             $settings->execute(['foundation_tasks_completed', '100']);
             $settings->execute(['review_intervals', '10 минут, 1, 3, 7, 14, 30, 45, 60 дней']);
+            $settings->execute(['course_v2_installed', date('c')]);
             db()->commit();
 
             session_regenerate_id(true);

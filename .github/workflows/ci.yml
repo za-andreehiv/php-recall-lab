@@ -28,6 +28,7 @@ jobs:
       - name: Verify curriculum volume
         run: |
           php -r 'require "app/seed.php"; $d=curriculum_data(); if(count($d)!==14){fwrite(STDERR,"Expected 14 topics\n");exit(1);} foreach($d as $t){if(count($t["tasks"])!==10){fwrite(STDERR,$t["code"]." must have 10 tasks\n");exit(1);}} echo "14 topics and 140 tasks verified\n";'
+          php -r 'require "app/course_seed.php"; $n=prime_course_total(); if($n!==447){fwrite(STDERR,"Expected 447 course exercises, got ".$n."\n");exit(1);} echo "447 course exercises verified\n";'
 
       - name: Build hosting ZIP
         run: |
